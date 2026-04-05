@@ -535,10 +535,33 @@ h2 {
   overflow-x: auto;
 }
 
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-bottom: 8px;
+}
+
+.chart-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-text-light);
+}
+
+.chart-legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 .history-chart-area canvas {
   display: block;
   width: 100%;
-  height: 200px;
+  height: 220px;
 }
 
 .history-list {

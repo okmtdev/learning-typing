@@ -492,7 +492,7 @@ function renderHistoryChart() {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.parentElement.getBoundingClientRect();
   const w = rect.width - 32; // padding
-  const h = 200;
+  const h = 220;
   canvas.width = w * dpr;
   canvas.height = h * dpr;
   canvas.style.width = w + 'px';
@@ -512,80 +512,65 @@ function renderHistoryChart() {
 
   // Take last 20 records
   const data = records.slice(-20);
-  const maxScore = 10;
-  const padding = { top: 25, bottom: 30, left: 35, right: 15 };
+  const padding = { top: 30, bottom: 32, left: 42, right: 42 };
   const chartW = w - padding.left - padding.right;
   const chartH = h - padding.top - padding.bottom;
 
+  // Compute max values for both axes
+  const maxTime = Math.max(...data.map(r => r.seconds), 10);
+  const maxMiss = Math.max(...data.map(r => r.misses || 0), 1);
+  // Round up to nice numbers
+  const timeAxis = ceilNice(maxTime);
+  const missAxis = ceilNice(maxMiss);
+
+  const GRID_LINES = 5;
+
   // Grid lines
-  ctx.strokeStyle = '#eee';
+  ctx.strokeStyle = '#f0f0f0';
   ctx.lineWidth = 1;
-  for (let i = 0; i <= maxScore; i += 2) {
-    const y = padding.top + chartH - (i / maxScore) * chartH;
+  for (let i = 0; i <= GRID_LINES; i++) {
+    const y = padding.top + chartH - (i / GRID_LINES) * chartH;
     ctx.beginPath();
     ctx.moveTo(padding.left, y);
     ctx.lineTo(w - padding.right, y);
     ctx.stroke();
   }
 
-  // Y axis labels
-  ctx.fillStyle = '#aaa';
-  ctx.font = '600 11px sans-serif';
+  // Left Y axis labels (time - blue)
+  ctx.fillStyle = '#4ecdc4';
+  ctx.font = '600 10px sans-serif';
   ctx.textAlign = 'right';
-  for (let i = 0; i <= maxScore; i += 2) {
-    const y = padding.top + chartH - (i / maxScore) * chartH;
-    ctx.fillText(String(i), padding.left - 6, y + 4);
+  for (let i = 0; i <= GRID_LINES; i++) {
+    const y = padding.top + chartH - (i / GRID_LINES) * chartH;
+    const val = Math.round((i / GRID_LINES) * timeAxis);
+    ctx.fillText(formatSec(val), padding.left - 6, y + 4);
   }
 
-  if (data.length === 1) {
-    // Single point
-    const x = padding.left + chartW / 2;
-    const y = padding.top + chartH - (data[0].correct / maxScore) * chartH;
-    ctx.fillStyle = '#ff6b6b';
-    ctx.beginPath();
-    ctx.arc(x, y, 6, 0, Math.PI * 2);
-    ctx.fill();
-    return;
+  // Right Y axis labels (miss - orange)
+  ctx.fillStyle = '#e17055';
+  ctx.textAlign = 'left';
+  for (let i = 0; i <= GRID_LINES; i++) {
+    const y = padding.top + chartH - (i / GRID_LINES) * chartH;
+    const val = Math.round((i / GRID_LINES) * missAxis);
+    ctx.fillText(String(val), w - padding.right + 6, y + 4);
   }
 
-  const stepX = chartW / (data.length - 1);
+  // Axis titles
+  ctx.font = '700 10px sans-serif';
+  ctx.fillStyle = '#4ecdc4';
+  ctx.textAlign = 'center';
+  ctx.fillText('タイム', padding.left / 2, padding.top - 12);
+  ctx.fillStyle = '#e17055';
+  ctx.fillText('ミス', w - padding.right / 2, padding.top - 12);
 
-  // Line
-  ctx.strokeStyle = '#ff6b6b';
-  ctx.lineWidth = 3;
-  ctx.lineJoin = 'round';
-  ctx.lineCap = 'round';
-  ctx.beginPath();
-  data.forEach((r, i) => {
-    const x = padding.left + i * stepX;
-    const y = padding.top + chartH - (r.correct / maxScore) * chartH;
-    if (i === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
+  const stepX = data.length === 1 ? 0 : chartW / (data.length - 1);
+  const getX = (i) => padding.left + (data.length === 1 ? chartW / 2 : i * stepX);
 
-  // Fill area under line
-  ctx.globalAlpha = 0.1;
-  ctx.fillStyle = '#ff6b6b';
-  ctx.lineTo(padding.left + (data.length - 1) * stepX, padding.top + chartH);
-  ctx.lineTo(padding.left, padding.top + chartH);
-  ctx.closePath();
-  ctx.fill();
-  ctx.globalAlpha = 1;
+  // --- Draw time line (blue/teal) ---
+  drawLine(ctx, data, getX, (r) => r.seconds / timeAxis, padding, chartH, '#4ecdc4', true);
 
-  // Dots
-  data.forEach((r, i) => {
-    const x = padding.left + i * stepX;
-    const y = padding.top + chartH - (r.correct / maxScore) * chartH;
-    ctx.fillStyle = '#fff';
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ff6b6b';
-    ctx.beginPath();
-    ctx.arc(x, y, 4, 0, Math.PI * 2);
-    ctx.fill();
-  });
+  // --- Draw miss line (orange) ---
+  drawLine(ctx, data, getX, (r) => (r.misses || 0) / missAxis, padding, chartH, '#e17055', false);
 
   // X axis labels (dates)
   ctx.fillStyle = '#aaa';
@@ -594,11 +579,70 @@ function renderHistoryChart() {
   const labelInterval = Math.max(1, Math.floor(data.length / 6));
   data.forEach((r, i) => {
     if (i % labelInterval === 0 || i === data.length - 1) {
-      const x = padding.left + i * stepX;
+      const x = getX(i);
       const d = new Date(r.date);
       ctx.fillText(`${d.getMonth() + 1}/${d.getDate()}`, x, h - 5);
     }
   });
+}
+
+function drawLine(ctx, data, getX, getRatio, padding, chartH, color, fill) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  data.forEach((r, i) => {
+    const x = getX(i);
+    const ratio = Math.min(getRatio(r), 1);
+    const y = padding.top + chartH - ratio * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill area
+  if (fill) {
+    ctx.globalAlpha = 0.08;
+    ctx.fillStyle = color;
+    ctx.lineTo(getX(data.length - 1), padding.top + chartH);
+    ctx.lineTo(getX(0), padding.top + chartH);
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+
+  // Dots
+  data.forEach((r, i) => {
+    const x = getX(i);
+    const ratio = Math.min(getRatio(r), 1);
+    const y = padding.top + chartH - ratio * chartH;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, 3, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function ceilNice(val) {
+  if (val <= 5) return 5;
+  if (val <= 10) return 10;
+  if (val <= 30) return 30;
+  if (val <= 60) return 60;
+  if (val <= 120) return 120;
+  if (val <= 180) return 180;
+  return Math.ceil(val / 60) * 60;
+}
+
+function formatSec(s) {
+  if (s < 60) return s + 'びょう';
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return sec === 0 ? m + 'ふん' : `${m}:${String(sec).padStart(2, '0')}`;
 }
 
 // ========== Init ==========
