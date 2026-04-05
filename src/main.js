@@ -17,6 +17,7 @@ let correctCount = 0;
 let wordTypedIndex = 0;
 let missCount = 0;
 let isLocked = false;
+let nextTimeout = null; // timeout ID for "せいかい" wait
 let timerInterval = null;
 let timerSeconds = 0;
 const TOTAL_QUESTIONS = 10;
@@ -185,15 +186,7 @@ function handleKeyGameInput(code, key) {
     $('key-feedback').className = 'feedback correct';
     $('key-progress').style.width = `${((currentIndex + 1) / TOTAL_QUESTIONS) * 100}%`;
 
-    setTimeout(() => {
-      currentIndex++;
-      isLocked = false;
-      if (currentIndex >= TOTAL_QUESTIONS) {
-        showResult();
-      } else {
-        showKeyQuestion();
-      }
-    }, 3000);
+    nextTimeout = setTimeout(advanceNext, 3000);
   } else {
     missCount++;
     playWrongSE();
@@ -321,16 +314,7 @@ function handleWordGameInput(code, key) {
       $('word-feedback').className = 'feedback correct';
       $('word-progress').style.width = `${((currentIndex + 1) / TOTAL_QUESTIONS) * 100}%`;
 
-      setTimeout(() => {
-        currentIndex++;
-        isLocked = false;
-        if (currentIndex >= TOTAL_QUESTIONS) {
-          stopTimer();
-          showResult();
-        } else {
-          showWordQuestion();
-        }
-      }, 3000);
+      nextTimeout = setTimeout(advanceNext, 3000);
     }
   } else {
     missCount++;
@@ -346,6 +330,25 @@ function handleWordGameInput(code, key) {
         }
       }, 300);
     }
+  }
+}
+
+// ========== Advance to Next (skip wait) ==========
+function advanceNext() {
+  if (!isLocked) return;
+  if (nextTimeout) {
+    clearTimeout(nextTimeout);
+    nextTimeout = null;
+  }
+  currentIndex++;
+  isLocked = false;
+  if (currentIndex >= TOTAL_QUESTIONS) {
+    stopTimer();
+    showResult();
+  } else if (currentMode && currentMode.startsWith('key-')) {
+    showKeyQuestion();
+  } else {
+    showWordQuestion();
   }
 }
 
@@ -411,6 +414,13 @@ document.addEventListener('keydown', (e) => {
 
   const code = e.code;   // Physical key position (e.g., 'KeyA', 'Digit3')
   const key = e.key;     // Produced character (e.g., 'a', 'ち' in kana mode)
+
+  // Enter key skips the "せいかい" wait
+  if (key === 'Enter' && isLocked) {
+    e.preventDefault();
+    advanceNext();
+    return;
+  }
 
   // For hiragana modes: accept any physical key or kana character
   // For alphabet modes: only accept a-z
