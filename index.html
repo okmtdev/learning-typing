@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>タイピングれんしゅう</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <!-- Title Screen -->
+    <div id="screen-title" class="screen active">
+      <div class="title-area">
+        <h1>タイピング<br>れんしゅう</h1>
+        <div class="mascot">
+          <div class="mascot-body">
+            <div class="mascot-eyes">
+              <span class="mascot-eye"></span>
+              <span class="mascot-eye"></span>
+            </div>
+            <div class="mascot-mouth"></div>
+          </div>
+          <div class="mascot-hands">
+            <span class="mascot-hand left">✋</span>
+            <span class="mascot-hand right">✋</span>
+          </div>
+        </div>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn btn-primary btn-large" data-action="key-type">
+          <span class="btn-icon">🔤</span>
+          <span>キーをタイプ</span>
+        </button>
+        <button class="btn btn-secondary btn-large" data-action="word-type">
+          <span class="btn-icon">📝</span>
+          <span>たんごをタイプ</span>
+        </button>
+        <button class="btn btn-accent btn-large" data-action="show-history">
+          <span class="btn-icon">📊</span>
+          <span>せいせきをみる</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Key Type Sub Menu -->
+    <div id="screen-key-menu" class="screen">
+      <h2>キーをタイプ</h2>
+      <p class="subtitle">どちらをえらんでね</p>
+      <div class="menu-buttons">
+        <button class="btn btn-primary btn-large" data-action="key-hiragana">
+          <span class="btn-icon">あ</span>
+          <span>ひらがなから</span>
+        </button>
+        <button class="btn btn-secondary btn-large" data-action="key-alphabet">
+          <span class="btn-icon">A</span>
+          <span>えいじから</span>
+        </button>
+      </div>
+      <button class="btn btn-back" data-action="back-title">もどる</button>
+    </div>
+
+    <!-- Word Type Sub Menu -->
+    <div id="screen-word-menu" class="screen">
+      <h2>たんごをタイプ</h2>
+      <p class="subtitle">どちらをえらんでね</p>
+      <div class="menu-buttons">
+        <button class="btn btn-primary btn-large" data-action="word-japanese">
+          <span class="btn-icon">🍣</span>
+          <span>ひらがなから</span>
+        </button>
+        <button class="btn btn-secondary btn-large" data-action="word-english">
+          <span class="btn-icon">🍎</span>
+          <span>えいじから</span>
+        </button>
+      </div>
+      <button class="btn btn-back" data-action="back-title">もどる</button>
+    </div>
+
+    <!-- Game Screen (Key Type) -->
+    <div id="screen-game-key" class="screen">
+      <div class="game-header">
+        <div class="progress-bar">
+          <div class="progress-fill" id="key-progress"></div>
+        </div>
+        <div class="score-display">
+          <span class="timer-display" id="key-timer">0:00</span>
+          <span id="key-current">0</span> / <span id="key-total">10</span>
+        </div>
+      </div>
+      <div class="game-area">
+        <div class="question-char" id="key-question"></div>
+        <div class="feedback" id="key-feedback"></div>
+        <div class="keyboard-hint" id="key-hint"></div>
+      </div>
+    </div>
+
+    <!-- Game Screen (Word Type) -->
+    <div id="screen-game-word" class="screen">
+      <div class="game-header">
+        <div class="progress-bar">
+          <div class="progress-fill" id="word-progress"></div>
+        </div>
+        <div class="score-display">
+          <span class="timer-display" id="word-timer">0:00</span>
+          <span id="word-current">0</span> / <span id="word-total">10</span>
+        </div>
+      </div>
+      <div class="game-area">
+        <div class="word-display" id="word-question"></div>
+        <div class="word-input-display" id="word-input-display"></div>
+        <div class="feedback" id="word-feedback"></div>
+      </div>
+    </div>
+
+    <!-- Result Screen -->
+    <div id="screen-result" class="screen">
+      <div class="result-area">
+        <h2 id="result-title">けっか</h2>
+        <div class="result-stars" id="result-stars"></div>
+        <div class="result-score">
+          <span class="result-correct" id="result-correct">0</span>
+          <span class="result-label">もん せいかい！</span>
+        </div>
+        <div class="result-miss-text" id="result-miss"></div>
+        <div class="result-timer-text" id="result-timer" style="display:none;"></div>
+      </div>
+      <div class="menu-buttons">
+        <button class="btn btn-primary btn-large" data-action="retry">
+          <span class="btn-icon">🔄</span>
+          <span>もういちど</span>
+        </button>
+        <button class="btn btn-secondary btn-large" data-action="back-title">
+          <span class="btn-icon">🏠</span>
+          <span>タイトルへ</span>
+        </button>
+      </div>
+    </div>
+    <!-- History Screen -->
+    <div id="screen-history" class="screen">
+      <h2>せいせき</h2>
+
+      <!-- Mode filter tabs -->
+      <div class="history-tabs" id="history-tabs">
+        <button class="history-tab active" data-filter="all">ぜんぶ</button>
+        <button class="history-tab" data-filter="key-hiragana">キー・ひらがな</button>
+        <button class="history-tab" data-filter="key-alphabet">キー・えいじ</button>
+        <button class="history-tab" data-filter="word-japanese">たんご・ひらがな</button>
+        <button class="history-tab" data-filter="word-english">たんご・えいじ</button>
+      </div>
+
+      <!-- Chart area -->
+      <div class="history-chart-area">
+        <div class="chart-legend">
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#4ecdc4"></span>タイム</span>
+          <span class="chart-legend-item"><span class="chart-legend-dot" style="background:#e17055"></span>ミス</span>
+        </div>
+        <canvas id="history-chart" width="600" height="220"></canvas>
+      </div>
+
+      <!-- History list -->
+      <div class="history-list" id="history-list"></div>
+
+      <div class="history-actions">
+        <button class="btn btn-back" data-action="back-title">もどる</button>
+        <button class="btn btn-back btn-danger-text" data-action="clear-history">りれきをけす</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
