@@ -118,17 +118,19 @@ function startKeyGame(mode) {
 
 function showKeyQuestion() {
   const q = questions[currentIndex];
-  $('key-question').textContent = q;
   $('key-feedback').textContent = '';
   $('key-feedback').className = 'feedback';
   $('key-current').textContent = currentIndex + 1;
   $('key-progress').style.width = `${(currentIndex / TOTAL_QUESTIONS) * 100}%`;
 
   if (currentMode === 'key-hiragana') {
+    $('key-question').textContent = q;
     const keyLabel = KANA_TO_KEY_LABEL[q] || '?';
     $('key-hint').innerHTML = `キーボードの「<strong>${keyLabel}</strong>」キーをおしてね`;
   } else {
-    $('key-hint').innerHTML = `「<strong>${q}</strong>」をおしてね`;
+    // Show uppercase large + lowercase small for alphabet
+    $('key-question').innerHTML = `<span>${q.toUpperCase()}</span><span class="key-question-lower">${q}</span>`;
+    $('key-hint').innerHTML = `「<strong>${q.toUpperCase()}</strong>」をおしてね`;
   }
 }
 
