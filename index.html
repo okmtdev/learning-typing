@@ -35,6 +35,10 @@
           <span class="btn-icon">📝</span>
           <span>たんごをタイプ</span>
         </button>
+        <button class="btn btn-accent btn-large" data-action="show-history">
+          <span class="btn-icon">📊</span>
+          <span>せいせきをみる</span>
+        </button>
       </div>
     </div>
 
@@ -79,6 +83,7 @@
           <div class="progress-fill" id="key-progress"></div>
         </div>
         <div class="score-display">
+          <span class="timer-display" id="key-timer">0:00</span>
           <span id="key-current">0</span> / <span id="key-total">10</span>
         </div>
       </div>
@@ -127,6 +132,32 @@
           <span class="btn-icon">🏠</span>
           <span>タイトルへ</span>
         </button>
+      </div>
+    </div>
+    <!-- History Screen -->
+    <div id="screen-history" class="screen">
+      <h2>せいせき</h2>
+
+      <!-- Mode filter tabs -->
+      <div class="history-tabs" id="history-tabs">
+        <button class="history-tab active" data-filter="all">ぜんぶ</button>
+        <button class="history-tab" data-filter="key-hiragana">キー・ひらがな</button>
+        <button class="history-tab" data-filter="key-alphabet">キー・えいじ</button>
+        <button class="history-tab" data-filter="word-japanese">たんご・ひらがな</button>
+        <button class="history-tab" data-filter="word-english">たんご・えいじ</button>
+      </div>
+
+      <!-- Chart area -->
+      <div class="history-chart-area">
+        <canvas id="history-chart" width="600" height="200"></canvas>
+      </div>
+
+      <!-- History list -->
+      <div class="history-list" id="history-list"></div>
+
+      <div class="history-actions">
+        <button class="btn btn-back" data-action="back-title">もどる</button>
+        <button class="btn btn-back btn-danger-text" data-action="clear-history">りれきをけす</button>
       </div>
     </div>
   </div>

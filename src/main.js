@@ -7,6 +7,7 @@ import {
   playCorrectSE, playWrongSE, playTypeSE, playResultSE,
   playClickSE, playWordCompleteSE, startBgm, stopBgm, resumeAudio,
 } from './audio.js';
+import { addRecord, loadHistory, clearHistory, getModeName } from './history.js';
 
 // ========== State ==========
 let currentMode = null; // 'key-hiragana' | 'key-alphabet' | 'word-japanese' | 'word-english'
@@ -62,12 +63,35 @@ document.addEventListener('click', (e) => {
         startWordGame(currentMode);
       }
       break;
+    case 'show-history':
+      showHistoryScreen();
+      break;
+    case 'clear-history':
+      if (confirm('りれきをぜんぶけしますか？')) {
+        clearHistory();
+        showHistoryScreen();
+      }
+      break;
     case 'back-title':
       stopBgm();
       stopTimer();
       showScreen('screen-title');
       break;
   }
+});
+
+// ========== History Tab Filter ==========
+let historyFilter = 'all';
+document.addEventListener('click', (e) => {
+  const tab = e.target.closest('.history-tab');
+  if (!tab) return;
+  playClickSE();
+  resumeAudio();
+  historyFilter = tab.dataset.filter;
+  document.querySelectorAll('.history-tab').forEach(t => t.classList.remove('active'));
+  tab.classList.add('active');
+  renderHistoryList();
+  renderHistoryChart();
 });
 
 // ========== Timer ==========
@@ -88,12 +112,13 @@ function stopTimer() {
 }
 
 function updateTimerDisplay() {
-  const el = $('word-timer');
-  if (el) {
-    const min = Math.floor(timerSeconds / 60);
-    const sec = timerSeconds % 60;
-    el.textContent = `${min}:${String(sec).padStart(2, '0')}`;
-  }
+  const min = Math.floor(timerSeconds / 60);
+  const sec = timerSeconds % 60;
+  const text = `${min}:${String(sec).padStart(2, '0')}`;
+  const keyEl = $('key-timer');
+  const wordEl = $('word-timer');
+  if (keyEl) keyEl.textContent = text;
+  if (wordEl) wordEl.textContent = text;
 }
 
 // ========== Key Typing Game ==========
@@ -113,6 +138,7 @@ function startKeyGame(mode) {
 
   showScreen('screen-game-key');
   startBgm();
+  startTimer();
   showKeyQuestion();
 }
 
@@ -323,20 +349,20 @@ function showResult() {
   stopBgm();
   stopTimer();
   playResultSE();
+
+  // Save to history
+  addRecord(currentMode, correctCount, TOTAL_QUESTIONS, timerSeconds);
+
   showScreen('screen-result');
 
   $('result-correct').textContent = correctCount;
 
-  // Show timer result for word mode
+  // Show timer result
   const timerResult = $('result-timer');
-  if (currentMode && currentMode.startsWith('word-')) {
-    const min = Math.floor(timerSeconds / 60);
-    const sec = timerSeconds % 60;
-    timerResult.textContent = `タイム: ${min}:${String(sec).padStart(2, '0')}`;
-    timerResult.style.display = 'block';
-  } else {
-    timerResult.style.display = 'none';
-  }
+  const min = Math.floor(timerSeconds / 60);
+  const sec = timerSeconds % 60;
+  timerResult.textContent = `タイム: ${min}:${String(sec).padStart(2, '0')}`;
+  timerResult.style.display = 'block';
 
   // Stars based on score
   let stars = '';
@@ -396,6 +422,174 @@ document.addEventListener('keydown', (e) => {
     handleWordGameInput(code, key);
   }
 });
+
+// ========== History Screen ==========
+function showHistoryScreen() {
+  historyFilter = 'all';
+  // Reset tab active state
+  document.querySelectorAll('.history-tab').forEach(t => {
+    t.classList.toggle('active', t.dataset.filter === 'all');
+  });
+  showScreen('screen-history');
+  renderHistoryList();
+  renderHistoryChart();
+}
+
+function getFilteredHistory() {
+  const all = loadHistory();
+  if (historyFilter === 'all') return all;
+  return all.filter(r => r.mode === historyFilter);
+}
+
+function renderHistoryList() {
+  const records = getFilteredHistory();
+  const list = $('history-list');
+
+  if (records.length === 0) {
+    list.innerHTML = '<div class="history-empty">まだきろくがないよ</div>';
+    return;
+  }
+
+  // Show newest first
+  const sorted = [...records].reverse();
+  list.innerHTML = sorted.map((r, i) => {
+    const d = new Date(r.date);
+    const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const accuracy = `${r.correct}/${r.total}`;
+    const timeStr = r.seconds > 0
+      ? `${Math.floor(r.seconds / 60)}:${String(r.seconds % 60).padStart(2, '0')}`
+      : '-';
+    return `
+      <div class="history-item">
+        <div class="history-item-rank">${i + 1}</div>
+        <div class="history-item-info">
+          <div class="history-item-mode">${getModeName(r.mode)}</div>
+          <div class="history-item-date">${dateStr}</div>
+        </div>
+        <div class="history-item-score">${accuracy}</div>
+        <div class="history-item-time">${timeStr}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function renderHistoryChart() {
+  const canvas = $('history-chart');
+  const ctx = canvas.getContext('2d');
+  const records = getFilteredHistory();
+
+  // Use device pixel ratio for sharp rendering
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.parentElement.getBoundingClientRect();
+  const w = rect.width - 32; // padding
+  const h = 200;
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  canvas.style.width = w + 'px';
+  canvas.style.height = h + 'px';
+  ctx.scale(dpr, dpr);
+
+  // Clear
+  ctx.clearRect(0, 0, w, h);
+
+  if (records.length < 1) {
+    ctx.fillStyle = '#aaa';
+    ctx.font = '700 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('まだデータがないよ', w / 2, h / 2);
+    return;
+  }
+
+  // Take last 20 records
+  const data = records.slice(-20);
+  const maxScore = 10;
+  const padding = { top: 25, bottom: 30, left: 35, right: 15 };
+  const chartW = w - padding.left - padding.right;
+  const chartH = h - padding.top - padding.bottom;
+
+  // Grid lines
+  ctx.strokeStyle = '#eee';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= maxScore; i += 2) {
+    const y = padding.top + chartH - (i / maxScore) * chartH;
+    ctx.beginPath();
+    ctx.moveTo(padding.left, y);
+    ctx.lineTo(w - padding.right, y);
+    ctx.stroke();
+  }
+
+  // Y axis labels
+  ctx.fillStyle = '#aaa';
+  ctx.font = '600 11px sans-serif';
+  ctx.textAlign = 'right';
+  for (let i = 0; i <= maxScore; i += 2) {
+    const y = padding.top + chartH - (i / maxScore) * chartH;
+    ctx.fillText(String(i), padding.left - 6, y + 4);
+  }
+
+  if (data.length === 1) {
+    // Single point
+    const x = padding.left + chartW / 2;
+    const y = padding.top + chartH - (data[0].correct / maxScore) * chartH;
+    ctx.fillStyle = '#ff6b6b';
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fill();
+    return;
+  }
+
+  const stepX = chartW / (data.length - 1);
+
+  // Line
+  ctx.strokeStyle = '#ff6b6b';
+  ctx.lineWidth = 3;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  data.forEach((r, i) => {
+    const x = padding.left + i * stepX;
+    const y = padding.top + chartH - (r.correct / maxScore) * chartH;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  // Fill area under line
+  ctx.globalAlpha = 0.1;
+  ctx.fillStyle = '#ff6b6b';
+  ctx.lineTo(padding.left + (data.length - 1) * stepX, padding.top + chartH);
+  ctx.lineTo(padding.left, padding.top + chartH);
+  ctx.closePath();
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // Dots
+  data.forEach((r, i) => {
+    const x = padding.left + i * stepX;
+    const y = padding.top + chartH - (r.correct / maxScore) * chartH;
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#ff6b6b';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  // X axis labels (dates)
+  ctx.fillStyle = '#aaa';
+  ctx.font = '500 9px sans-serif';
+  ctx.textAlign = 'center';
+  const labelInterval = Math.max(1, Math.floor(data.length / 6));
+  data.forEach((r, i) => {
+    if (i % labelInterval === 0 || i === data.length - 1) {
+      const x = padding.left + i * stepX;
+      const d = new Date(r.date);
+      ctx.fillText(`${d.getMonth() + 1}/${d.getDate()}`, x, h - 5);
+    }
+  });
+}
 
 // ========== Init ==========
 showScreen('screen-title');
