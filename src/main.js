@@ -15,6 +15,7 @@ let questions = [];
 let currentIndex = 0;
 let correctCount = 0;
 let wordTypedIndex = 0;
+let missCount = 0;
 let isLocked = false;
 let timerInterval = null;
 let timerSeconds = 0;
@@ -126,6 +127,7 @@ function startKeyGame(mode) {
   currentMode = mode;
   currentIndex = 0;
   correctCount = 0;
+  missCount = 0;
   isLocked = false;
 
   if (mode === 'key-hiragana') {
@@ -193,6 +195,7 @@ function handleKeyGameInput(code, key) {
       }
     }, 3000);
   } else {
+    missCount++;
     playWrongSE();
     $('key-feedback').textContent = 'ちがうよ';
     $('key-feedback').className = 'feedback wrong';
@@ -210,6 +213,7 @@ function startWordGame(mode) {
   currentMode = mode;
   currentIndex = 0;
   correctCount = 0;
+  missCount = 0;
   wordTypedIndex = 0;
   isLocked = false;
 
@@ -329,6 +333,7 @@ function handleWordGameInput(code, key) {
       }, 3000);
     }
   } else {
+    missCount++;
     playWrongSE();
     const chars = $('word-input-display').querySelectorAll('.char');
     if (chars[wordTypedIndex]) {
@@ -351,11 +356,14 @@ function showResult() {
   playResultSE();
 
   // Save to history
-  addRecord(currentMode, correctCount, TOTAL_QUESTIONS, timerSeconds);
+  addRecord(currentMode, correctCount, TOTAL_QUESTIONS, timerSeconds, missCount);
 
   showScreen('screen-result');
 
   $('result-correct').textContent = correctCount;
+
+  // Show miss count
+  $('result-miss').textContent = `ミス: ${missCount} かい`;
 
   // Show timer result
   const timerResult = $('result-timer');
@@ -456,6 +464,7 @@ function renderHistoryList() {
     const d = new Date(r.date);
     const dateStr = `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
     const accuracy = `${r.correct}/${r.total}`;
+    const misses = r.misses || 0;
     const timeStr = r.seconds > 0
       ? `${Math.floor(r.seconds / 60)}:${String(r.seconds % 60).padStart(2, '0')}`
       : '-';
@@ -467,6 +476,7 @@ function renderHistoryList() {
           <div class="history-item-date">${dateStr}</div>
         </div>
         <div class="history-item-score">${accuracy}</div>
+        <div class="history-item-miss">${misses > 0 ? 'ミス ' + misses : '-'}</div>
         <div class="history-item-time">${timeStr}</div>
       </div>
     `;

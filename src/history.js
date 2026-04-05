@@ -33,15 +33,17 @@ function saveHistory(records) {
  * @param {string} mode - 'key-hiragana' | 'key-alphabet' | 'word-japanese' | 'word-english'
  * @param {number} correct - number of correct answers
  * @param {number} total - total questions
- * @param {number} seconds - time in seconds (0 for key mode)
+ * @param {number} seconds - time in seconds
+ * @param {number} misses - number of typo misses
  */
-export function addRecord(mode, correct, total, seconds) {
+export function addRecord(mode, correct, total, seconds, misses) {
   const records = loadHistory();
   records.push({
     mode,
     correct,
     total,
     seconds,
+    misses: misses || 0,
     date: new Date().toISOString(),
   });
   // Keep only latest MAX_RECORDS

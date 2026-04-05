@@ -467,6 +467,13 @@ h2 {
   color: var(--color-text-light);
 }
 
+.result-miss-text {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--color-wrong);
+  margin-top: 5px;
+}
+
 .result-timer-text {
   font-size: 1.3rem;
   font-weight: 700;
@@ -585,6 +592,14 @@ h2 {
   font-weight: 900;
   color: var(--color-primary);
   min-width: 60px;
+  text-align: right;
+}
+
+.history-item-miss {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--color-wrong);
+  min-width: 55px;
   text-align: right;
 }
 
