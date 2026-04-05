@@ -208,10 +208,19 @@ function showWordQuestion() {
     hintText = q.hint;
   }
 
-  $('word-question').innerHTML = `
-    <div>${q.display}</div>
-    <div style="font-size: 1.1rem; color: #999; margin-top: 8px;">${hintText}</div>
-  `;
+  if (currentMode === 'word-english') {
+    // Show uppercase prominently, lowercase below
+    $('word-question').innerHTML = `
+      <div class="word-upper">${q.display.toUpperCase()}</div>
+      <div class="word-lower">${q.display}</div>
+      <div style="font-size: 1.1rem; color: #999; margin-top: 8px;">${hintText}</div>
+    `;
+  } else {
+    $('word-question').innerHTML = `
+      <div>${q.display}</div>
+      <div style="font-size: 1.1rem; color: #999; margin-top: 8px;">${hintText}</div>
+    `;
+  }
 
   $('word-feedback').textContent = '';
   $('word-feedback').className = 'feedback';
