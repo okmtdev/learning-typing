@@ -12,7 +12,19 @@
     <div id="screen-title" class="screen active">
       <div class="title-area">
         <h1>タイピング<br>れんしゅう</h1>
-        <div class="title-decoration">⌨️</div>
+        <div class="mascot">
+          <div class="mascot-body">
+            <div class="mascot-eyes">
+              <span class="mascot-eye"></span>
+              <span class="mascot-eye"></span>
+            </div>
+            <div class="mascot-mouth"></div>
+          </div>
+          <div class="mascot-hands">
+            <span class="mascot-hand left">✋</span>
+            <span class="mascot-hand right">✋</span>
+          </div>
+        </div>
       </div>
       <div class="menu-buttons">
         <button class="btn btn-primary btn-large" data-action="key-type">
@@ -84,6 +96,7 @@
           <div class="progress-fill" id="word-progress"></div>
         </div>
         <div class="score-display">
+          <span class="timer-display" id="word-timer">0:00</span>
           <span id="word-current">0</span> / <span id="word-total">10</span>
         </div>
       </div>
@@ -103,6 +116,7 @@
           <span class="result-correct" id="result-correct">0</span>
           <span class="result-label">もん せいかい！</span>
         </div>
+        <div class="result-timer-text" id="result-timer" style="display:none;"></div>
       </div>
       <div class="menu-buttons">
         <button class="btn btn-primary btn-large" data-action="retry">

@@ -1,5 +1,6 @@
 import {
-  HIRAGANA_MAP, HIRAGANA_ROMAJI, ALPHABET,
+  CODE_TO_KANA, KANA_TO_CODE, KANA_TO_KEY_LABEL,
+  HIRAGANA_LIST, ALPHABET,
   JAPANESE_WORDS, ENGLISH_WORDS, shuffle,
 } from './data.js';
 import {
@@ -13,7 +14,9 @@ let questions = [];
 let currentIndex = 0;
 let correctCount = 0;
 let wordTypedIndex = 0;
-let isLocked = false; // prevent input during feedback
+let isLocked = false;
+let timerInterval = null;
+let timerSeconds = 0;
 const TOTAL_QUESTIONS = 10;
 
 // ========== DOM Helpers ==========
@@ -61,10 +64,37 @@ document.addEventListener('click', (e) => {
       break;
     case 'back-title':
       stopBgm();
+      stopTimer();
       showScreen('screen-title');
       break;
   }
 });
+
+// ========== Timer ==========
+function startTimer() {
+  timerSeconds = 0;
+  updateTimerDisplay();
+  timerInterval = setInterval(() => {
+    timerSeconds++;
+    updateTimerDisplay();
+  }, 1000);
+}
+
+function stopTimer() {
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function updateTimerDisplay() {
+  const el = $('word-timer');
+  if (el) {
+    const min = Math.floor(timerSeconds / 60);
+    const sec = timerSeconds % 60;
+    el.textContent = `${min}:${String(sec).padStart(2, '0')}`;
+  }
+}
 
 // ========== Key Typing Game ==========
 function startKeyGame(mode) {
@@ -74,8 +104,9 @@ function startKeyGame(mode) {
   isLocked = false;
 
   if (mode === 'key-hiragana') {
-    const hiraganaKeys = Object.keys(HIRAGANA_MAP);
-    questions = shuffle(hiraganaKeys).slice(0, TOTAL_QUESTIONS);
+    // Filter to hiragana that have a JIS key mapping
+    const available = HIRAGANA_LIST.filter(h => KANA_TO_CODE[h]);
+    questions = shuffle(available).slice(0, TOTAL_QUESTIONS);
   } else {
     questions = shuffle(ALPHABET).slice(0, TOTAL_QUESTIONS);
   }
@@ -94,26 +125,29 @@ function showKeyQuestion() {
   $('key-progress').style.width = `${(currentIndex / TOTAL_QUESTIONS) * 100}%`;
 
   if (currentMode === 'key-hiragana') {
-    $('key-hint').textContent = `キーボードの「${HIRAGANA_ROMAJI[q]}」のさいしょのもじをおしてね`;
+    const keyLabel = KANA_TO_KEY_LABEL[q] || '?';
+    $('key-hint').innerHTML = `キーボードの「<strong>${keyLabel}</strong>」キーをおしてね`;
   } else {
-    $('key-hint').textContent = `キーボードの「${q}」をおしてね`;
+    $('key-hint').innerHTML = `「<strong>${q}</strong>」をおしてね`;
   }
 }
 
-function handleKeyInput(key) {
+function handleKeyGameInput(code, key) {
   if (isLocked) return;
 
   const q = questions[currentIndex];
-  let expectedKey;
+  let isCorrect = false;
 
   if (currentMode === 'key-hiragana') {
-    expectedKey = HIRAGANA_MAP[q];
+    // Accept: physical key code matches JIS layout, OR key event directly produces the hiragana
+    const expectedCode = KANA_TO_CODE[q];
+    isCorrect = (code === expectedCode) || (key === q);
   } else {
-    expectedKey = q;
+    // Alphabet mode: match the letter
+    isCorrect = (key.toLowerCase() === q);
   }
 
-  if (key === expectedKey) {
-    // Correct
+  if (isCorrect) {
     isLocked = true;
     correctCount++;
     playCorrectSE();
@@ -131,7 +165,6 @@ function handleKeyInput(key) {
       }
     }, 3000);
   } else {
-    // Wrong
     playWrongSE();
     $('key-feedback').textContent = 'ちがうよ';
     $('key-feedback').className = 'feedback wrong';
@@ -157,6 +190,7 @@ function startWordGame(mode) {
 
   showScreen('screen-game-word');
   startBgm();
+  startTimer();
   showWordQuestion();
 }
 
@@ -164,10 +198,19 @@ function showWordQuestion() {
   const q = questions[currentIndex];
   wordTypedIndex = 0;
 
-  // Show the word and its hint
+  // Build display
+  let hintText = '';
+  if (currentMode === 'word-japanese') {
+    // For Japanese words, show the key labels as hint
+    const keyHints = q.chars.map(ch => KANA_TO_KEY_LABEL[ch] || '?').join(' ');
+    hintText = `キー: ${keyHints}`;
+  } else if (q.hint) {
+    hintText = q.hint;
+  }
+
   $('word-question').innerHTML = `
     <div>${q.display}</div>
-    <div style="font-size: 1rem; color: #999; margin-top: 5px;">${q.hint !== q.display ? q.hint : ''}</div>
+    <div style="font-size: 1.1rem; color: #999; margin-top: 8px;">${hintText}</div>
   `;
 
   $('word-feedback').textContent = '';
@@ -180,10 +223,15 @@ function showWordQuestion() {
 
 function renderWordInput() {
   const q = questions[currentIndex];
-  const romaji = q.romaji;
-  let html = '';
+  let chars;
+  if (currentMode === 'word-japanese') {
+    chars = q.chars;
+  } else {
+    chars = q.romaji.split('');
+  }
 
-  for (let i = 0; i < romaji.length; i++) {
+  let html = '';
+  for (let i = 0; i < chars.length; i++) {
     let cls = 'char ';
     if (i < wordTypedIndex) {
       cls += 'typed';
@@ -192,26 +240,38 @@ function renderWordInput() {
     } else {
       cls += 'remaining';
     }
-    html += `<span class="${cls}">${romaji[i]}</span>`;
+    html += `<span class="${cls}">${chars[i]}</span>`;
   }
 
   $('word-input-display').innerHTML = html;
 }
 
-function handleWordInput(key) {
+function handleWordGameInput(code, key) {
   if (isLocked) return;
 
   const q = questions[currentIndex];
-  const romaji = q.romaji;
-  const expected = romaji[wordTypedIndex];
+  let isCorrect = false;
+  let totalChars;
 
-  if (key === expected) {
-    // Correct character
+  if (currentMode === 'word-japanese') {
+    // JIS kana direct input
+    const expectedKana = q.chars[wordTypedIndex];
+    const expectedCode = KANA_TO_CODE[expectedKana];
+    isCorrect = (code === expectedCode) || (key === expectedKana);
+    totalChars = q.chars.length;
+  } else {
+    // English word: match letter by letter
+    const expected = q.romaji[wordTypedIndex];
+    isCorrect = (key.toLowerCase() === expected);
+    totalChars = q.romaji.length;
+  }
+
+  if (isCorrect) {
     playTypeSE();
     wordTypedIndex++;
     renderWordInput();
 
-    if (wordTypedIndex >= romaji.length) {
+    if (wordTypedIndex >= totalChars) {
       // Word complete
       isLocked = true;
       correctCount++;
@@ -224,6 +284,7 @@ function handleWordInput(key) {
         currentIndex++;
         isLocked = false;
         if (currentIndex >= TOTAL_QUESTIONS) {
+          stopTimer();
           showResult();
         } else {
           showWordQuestion();
@@ -231,9 +292,7 @@ function handleWordInput(key) {
       }, 3000);
     }
   } else {
-    // Wrong character
     playWrongSE();
-    // Briefly highlight current char as wrong
     const chars = $('word-input-display').querySelectorAll('.char');
     if (chars[wordTypedIndex]) {
       chars[wordTypedIndex].classList.add('wrong-char');
@@ -251,10 +310,22 @@ function handleWordInput(key) {
 // ========== Result Screen ==========
 function showResult() {
   stopBgm();
+  stopTimer();
   playResultSE();
   showScreen('screen-result');
 
   $('result-correct').textContent = correctCount;
+
+  // Show timer result for word mode
+  const timerResult = $('result-timer');
+  if (currentMode && currentMode.startsWith('word-')) {
+    const min = Math.floor(timerSeconds / 60);
+    const sec = timerSeconds % 60;
+    timerResult.textContent = `タイム: ${min}:${String(sec).padStart(2, '0')}`;
+    timerResult.style.display = 'block';
+  } else {
+    timerResult.style.display = 'none';
+  }
 
   // Stars based on score
   let stars = '';
@@ -293,18 +364,25 @@ document.addEventListener('keydown', (e) => {
   // Ignore modifier keys
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
-  const key = e.key.toLowerCase();
+  const code = e.code;   // Physical key position (e.g., 'KeyA', 'Digit3')
+  const key = e.key;     // Produced character (e.g., 'a', 'ち' in kana mode)
 
-  // Only process single letter keys
-  if (key.length !== 1 || !/[a-z]/.test(key)) return;
+  // For hiragana modes: accept any physical key or kana character
+  // For alphabet modes: only accept a-z
+  const isKanaMode = currentMode === 'key-hiragana' || currentMode === 'word-japanese';
+
+  if (!isKanaMode) {
+    const lowerKey = key.toLowerCase();
+    if (lowerKey.length !== 1 || !/[a-z]/.test(lowerKey)) return;
+  }
 
   e.preventDefault();
   resumeAudio();
 
-  if (currentMode && currentMode.startsWith('key-') && $('screen-game-key').classList.contains('active')) {
-    handleKeyInput(key);
-  } else if (currentMode && currentMode.startsWith('word-') && $('screen-game-word').classList.contains('active')) {
-    handleWordInput(key);
+  if ($('screen-game-key').classList.contains('active')) {
+    handleKeyGameInput(code, key);
+  } else if ($('screen-game-word').classList.contains('active')) {
+    handleWordGameInput(code, key);
   }
 });
 
